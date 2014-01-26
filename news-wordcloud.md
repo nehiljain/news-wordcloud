@@ -1,0 +1,74 @@
+Indian News Wordcloud
+========================================================
+
+This is a attempt to visualise what the news channels are talking about through a word cloud of the top stories in the national news section.
+
+My first analysis is on **The Hindu**. 
+
+[Here](http://www.thehindu.com/news/national/?service=rss) is the rss feed I am using.
+
+This is all a learning experience for me. So, I will list all the resources I am using so that this might be an helpful example for someone else who is completely new to R. 
+
+XML Parsing using the XML Package.
+
+* A [Stackoverflow](http://stackoverflow.com/questions/13579996/how-to-create-an-r-data-frame-from-a-xml-file) Answer
+* Tutorial on XML package.
+
+
+
+```r
+
+library(XML)
+destFilename <- "hindu-rss.xml"
+rssUrl <- "http://www.thehindu.com/news/national/?service=rss"
+download.file(rssUrl, destFilename)
+doc <- xmlParse(destFilename)
+itemsDataFrame <- xmlToDataFrame(getNodeSet(doc, "//channel/item"))
+itemsDataFrame <- itemsDataFrame[c("title", "description")]
+itemsDataFrame["title"] <- as.character(itemsDataFrame$title)
+itemsDataFrame["description"] <- as.character(itemsDataFrame$description)
+```
+
+
+So we now have 2 string vectors. Now I want to make a word cloud of the text I have. I will use text mining package, tm and wordcloud package of R.
+
+
+```r
+library(tm)
+library(wordcloud)
+```
+
+```
+## Loading required package: Rcpp
+## Loading required package: RColorBrewer
+```
+
+```r
+news.corpus <- Corpus(DataframeSource(data.frame(itemsDataFrame)))
+news.corpus <- tm_map(news.corpus, removePunctuation)
+news.corpus <- tm_map(news.corpus, tolower)
+news.corpus <- tm_map(news.corpus, function(x) removeWords(x, stopwords("english")))
+news.tdm <- TermDocumentMatrix(news.corpus)
+news.m <- as.matrix(news.tdm)
+news.v <- sort(rowSums(news.m), decreasing = TRUE)
+news.d <- data.frame(word = names(news.v), freq = news.v)
+table(news.d$freq)
+```
+
+```
+## 
+##   1   2   3   4   5   6   7   8   9  10  11  12  15  18  20 
+## 787 205  57  38  14   7   4   1   3   3   1   3   1   1   1
+```
+
+```r
+pal2 <- brewer.pal(8, "Dark2")
+
+wordcloud(news.d$word, news.d$freq, scale = c(3, 0.2), min.freq = 3, max.words = Inf, 
+    random.order = FALSE, rot.per = 0.15, colors = pal2)
+```
+
+<img src="figure/unnamed-chunk-2.png" title="plot of chunk unnamed-chunk-2" alt="plot of chunk unnamed-chunk-2" height="800" />
+
+
+I want to iterate over several news websites. Hence this is still under development. 
